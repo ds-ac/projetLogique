@@ -1,0 +1,452 @@
+<!--?xml version="1.0"?-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type" />
+  <title>Logic Project</title>
+  <style><!--
+
+    h1, h2 { text-align: center }
+
+    body > div {
+      text-align: justify;
+      max-width: 55em;
+      margin: auto;
+    }
+    body > div + div > ul {
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+
+    .main {
+      margin-top: 1cm
+    }
+
+    .trans {
+      opacity: 0;
+    }
+
+    .item {
+      flex-grow: 1;
+      max-width: 15em;
+      margin: 5px 5px;
+      border: dotted 1px black;
+      vertical-align: center;
+      padding: auto;
+    }
+    .item {
+      text-align: center;
+    }
+    .item > ul {
+      list-style-type: none;
+      padding: 0px;
+    }
+    .items {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: stretch;
+    }
+    .item:nth-child(2n) { background: #ccf }
+    .item:nth-child(2n+1) { background: #aaf }
+
+    .date { font-weight: bold }
+    .date::after { content: ":" }
+
+    #agenda li { list-style-type: none ; margin-right: 1cm }
+    #agenda li:nth-child(n) { opacity: 0.5; font-weight: normal }
+    /* HERE CALENDAR */
+    #agenda li:nth-child(17) {
+      font-weight: bold;
+      opacity: 1;
+      // border: dotted black 1px ;
+      list-style-type: disc }
+
+    .deadline {
+      color: red;
+    }
+
+    .gilles { color: gray }
+    li.exam { font-style: bold }
+    .alert { color: red }
+
+    h2 { border: solid 1px ; width: 100% }
+    div.part { padding-left: 2em ; padding-right: 2em }
+    h2.first { background: #a6a }
+    h2.second { background: #6a6 }
+    code { color: darkgreen }
+
+    --></style>
+</head>
+<body>
+
+<div class="">
+  <h1>Logic Project</h1>
+  <h3 style="text-align:center">ENS Paris-Saclay, L3, 2020-2021</h3>
+</div>
+<div class="main">
+
+  <h2 class="first">Part I: Coq</h2>
+
+  <div class="part">
+
+    <h3>Resources</h3>
+    <ul>
+      <li>Guide to <a href="tactics.pdf">tactics</a>.</li>
+    </ul>
+    <h3>Basic tutorials</h3>
+    <p>
+    For each tutorial, you must remove all uses of <code>TODO</code>
+    or <code>Admitted</code>.
+    </p>
+    <ol>
+      <li>Programming in Coq:
+        <a href="prog.v">Coq</a> / <a href="prog.html">HTML</a> /
+        <a href="prog_2.mkv">Vidéo</a>
+      </li>
+      <li>Propositional proofs:
+        <a href="propositional.v">Coq</a> /
+        <a href="propositional.html">HTML</a> /
+        <a href="prop_1.mkv">Vidéo</a></li>
+      <li>Arithmetic:
+        <a href="nats.v">Coq</a> /
+        <a href="nats.html">HTML</a></li>
+    </ol>
+    <p>The first three tutorials are due before
+    <span class="deadline">Monday, February 22th</span>.
+    The completed <code>.v</code> files should simply be sent by email,
+    possibly with comments on tricky parts, encountered problems, etc.</p>
+    <h3>Advanced tutorials</h3>
+    <ol>
+      <li>Extraction:
+        <a href="extraction.v">Coq</a> / <a href="extraction.html">HTML</a>
+      </li>
+      <li>Decidability:
+        <a href="decidability.v">Coq</a> / <a href="decidability.html">HTML</a>
+      <li>More on (co)inductives:
+        <a href="acc.v">Coq</a> / <a href="acc.html">HTML</a>
+      </li>
+    </ol>
+    <p>The three advanced tutorials are due before
+    <span class="deadline">Monday, March 29th</span>.
+    To get all the points you will have to complete all bonuses
+    from the <code>acc.v</code> tutorial.</p>
+
+  </div>
+
+  <h2 class="second">Part II.1: Solving problems sing SATs-solvers</h2>
+  <div class="part">
+  <p>
+  This project comes with some
+  <a href="https://git.lsv.fr/baelde/projlog21sat">code skeleton</a>.
+  The provided OCaml module <code>Dimacs</code> will be useful
+  for all tasks, and the <code>Hex</code> module will be useful
+  to encode the penguins' problem. The documentation of these
+  modules can be generated in <code>html/</code>
+  by running <code>make doc</code>; it is also
+  available <a href="doc/index.html">here</a>.
+  </p>
+
+  <p>We will consider several problems. Each problem will be encoded
+  to SAT, and solved using <code>minisat</code>.
+  More precisely, each instance <code>I</code> of the problem must be encoded
+  in polynomial time
+  to a SAT instance <code>S</code> such that the problem <code>I</code>
+  is feasible iff <code>S</code> has a model.
+  Further, you will have to be able to extract (again in polynomial time)
+  a solution for <code>I</code> from a model of <code>S</code>.
+  It is not required that all solutions can be obtained in this way.
+  </p>
+
+  <!-- TODO -->
+  <p>
+  Your encodings will be judged first on their correctness.
+  If correct, points will be granted depending on their performance:
+  more details on this in the coming weeks.
+  </p>
+
+  <h3>Latin square</h3>
+  <p>
+  File <code>src/latin.ml</code> shows how to encode
+  <a href="https://en.wikipedia.org/wiki/Latin_square">latin square</a>
+  to SAT (the input <code>N</code> is the size of the square).
+  It can be tested using, for example, <code>make N=10 test_latin</code>.
+  However, the encoding can be improved: try to modify the file, adding
+  some clauses to help the SAT solver.
+  </p>
+  <center>
+    <img src="https://pthree.org/wp-content/uploads/2018/09/stained-glass-300x258.jpg" width="20%"/>
+  </center>
+
+  <h3>Greco-latin square</h3>
+  <p>
+  Adapt <code>src/latin.ml</code> into <code>src/greek.ml</code> to
+  encode the
+  <a href="https://en.wikipedia.org/wiki/Graeco-Latin_square">graeco-latin
+    square</a> problem.</p>
+  <center>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/GrecoLatinSquare-Order4.svg/1024px-GrecoLatinSquare-Order4.svg.png" width="20%"/>
+  </center>
+
+  <h3>Pingouins</h3>
+  <p>
+  In <a href="https://en.wikipedia.org/wiki/Hey,_That%27s_My_Fish!">Hey,
+    That's My Fish!</a> several penguins move on hexagonal ice floats
+  to eat as much fish as possible. We consider the simplified problem
+  where a single penguin has to eat some number of fish, when there
+  is exactly one fish per float.
+  Several instances of this problem are provided in <code>problems/</code>,
+  organized in subdirectories indicating how many floats must be left
+  unvisited.
+  </p>
+  <center>
+  <img src="https://static1.squarespace.com/static/5d19d379c86bce00014eb750/t/5d229f2213a1670001dc348e/1562550064599/heythatsmyfish_3.jpg" width="20%"/>
+  </center>
+  <p>
+  Write a SAT encoder <code>src/pingouins.ml</code>, using the provided
+  OCaml module <code>Hex</code> to parse input files and handle
+  moves on the hexagonal grid.
+  Your <code>pingouins</code> binary
+  should use the environment variable <code>PENALTY</code> to
+  know how many floats can be left unvisited.
+  This is required to be able to use the provided make targets,
+  e.g. <code>make PROBLEM=problems/1/flake1 PENALTY=1 test_pingouins</code>
+  to test on a given problem
+  and <code>make PENALTY=1 tests_pingouins</code> to test on all
+  problems of <code>problems/1/</code>.
+  </p>
+
+  <h3>A mysterious problem</h3>
+  <p>
+  Another problem will be added to this list soon.
+  </p>
+
+  </div>
+
+  <h2 class="first">Part II.2: Implementing a SAT solver</h2>
+  <div class="part">
+  <p>
+  The most naive way to solve SAT is to guess the value of all variables,
+  one by one. This is however too inefficient: after guessing, for example,
+  that some variable <code>X</code> is false, there are typically several
+  variables <code>Y</code> whose value is forced by the clauses. This is
+  the main idea behind the
+  <a href="https://en.wikipedia.org/wiki/DPLL_algorithm">DPLL</a>
+  algorithm, which is the core of modern SAT solvers.
+  </p>
+  <p>
+  A basic implementation of DPLL is provided in <code>src/naive.ml</code>.
+  It alternates between choices and unit propagation &mdash; we will not
+  consider pure literal propagations. Backtracking is used to consider
+  alternative choices. When encountering a conflict (i.e. realizing that
+  the current assignment violates a clause) the function simply returns,
+  and it raises <code>SAT m</code> when a model <code>m</code> is found.
+  The partial assignment, containing values resulting
+  from both choices and propagations, is maintained as an association list,
+  of type <code>(literal * bool) list</code>.
+  </p>
+  <p>
+  When TRACE is set in the environment, the execution of the naive SAT
+  solver produces a trace of the successive partial assignments.
+  It is <b>required</b> that this functionality is preserved in
+  your modified versions of the solver. The trace produced after your
+  modifications <b>must</b> remain unchanged.
+  </p>
+
+  <h3>Imperative partial assignments</h3>
+
+  <p>
+  In order to improve our SAT solver, we will first adopt a more efficient
+  data structure for the partial assignment: instead of the association
+  list, we will use two arrays, a first one indicating for each variable
+  whether it is assigned, and a second one giving the actual values of
+  variables. This implementation allows constant-time querying and
+  modification of the partial assignment.
+  </p>
+  <p>
+  The downside is that the data structure is no more persitent, but mutable.
+  Thanks to its persistent partial assignment, the DPLL function of
+  <code>src/naive.ml</code> simply takes an assignment as argument,
+  and passes its modified versions to its two recursive calls,
+  corresponding to the exploration of the two alternative values for
+  the chosen variable.
+  With the new mutable data structure, something has to be done to cope
+  with backtracking. There are two options:
+  </p>
+  <ul>
+    <li>
+      We could still take the assignment as argument of <code>dpll</code>,
+      and use <code>Array.copy</code> to keep its initial value,
+      and be able to backtrack. These copies would however be very inefficient,
+      costing time and memory allocations.
+    </li>
+    <li>
+      A better approach is to maintain a single partial assignment
+      (two arrays) to be used by all recursive calls of <code>dpll</code>,
+      and maintain a stack of modifications performed on the partial
+      assignment, to be able to undo them. Whenever a variable <code>X</code>
+      is assigned, a new item <code>X</code> should be added to the stack.
+      A special "checkpoint" value, for example <code>0</code>, can also be 
+      pushed to the stack, to be able to undo modifications back to this
+      point: this simply consists in marking as unassigned all variables found 
+      on the stack before the checkpoint (changing their value is unnecessary,
+      as the value of unassigned variables is irrelevant).
+    </li>
+  </ul>
+
+  <p>
+  Modify <code>src/naive.ml</code> into <code>src/arrays.ml</code>
+  to use partial assignments as arrays, using the second approach.
+  You should witness a significant speedup. To check for correctness
+  first compare the traces on simple examples, then you can run
+  <code>make PROVER=./arrays test</code> for a thorough test.
+  This will also display the performance ratio between your prover
+  and <code>minisat</code>, which is about 850 in my case.
+  </p>
+
+  <p>
+  It is <b>mandatory</b> that you precisely state
+  (1) how your data structures represent a partial assignement and
+  (2) what invariant/pre-condition/post-condition holds about your stack
+  of modifications through the recursive calls of the <code>dpll</code>
+  function.
+  </p>
+
+  <h3>Two watched literals</h3>
+
+  <p>
+  Two fundamental ideas have brought impressive performance gains for
+  SAT solvers. The first one is <a
+    href="https://en.wikipedia.org/wiki/Conflict-driven_clause_learning"
+  >conflict-driven clause learning</a>: it is purely logical, and
+  beautiful, but we will not consider it in this project.
+  The second one is <em>two watched literals</em>: it is an
+  algorithmic improvement of the data structure used to store clauses,
+  allowing more efficient unit propagation.
+  </p>
+  <p>
+  A DPLL solver spends most of its time propagating literals, it is thus
+  important to optimize this step. Unit propagation requires to iterate
+  over unit clauses wrt. the current assignment. A key observation is that,
+  since a clause becomes a unit clause when all but one of its literals are
+  assigned to false, it suffices to "watch" two of its literals to detect
+  when this happens, maintaining the following invariant:
+  </p>
+  <p class="invariant">
+  &vdash; In a clause that is not satisfied in the current partial assignment,
+  the two watched literals are unassigned.
+  </p>
+  <p>Then, propagation takes place as follows when a literal <code>L</code>
+  becomes false:</p>
+  <ul>
+    <li>
+      There is no need to consider clauses where <code>L</code> is not watched.
+      Indeed, these clauses have at least two other unassigned literals: their
+      watched literals.
+    </li><li>
+      We also do not need to consider clauses that are satisfied,
+      i.e. containing a literal assigned to true. This includes
+      clauses containing the negation of <code>L</code>, watched
+      or not.
+    </li><li>
+      If an unsatisfied clause where <code>L</code> is watched
+      has only one unassigned literal, it must be its other watched literal,
+      and we can propagate it. If two such propagations are contradictory,
+      we have a conflict.
+    </li><li>
+      If a clause where <code>L</code> is watched is not a unit clause,
+      then it must have an unassigned literal <code>L'</code>
+      that is not currently watched.
+      We maintain the invariant by changing the watched literals of the
+      clause, replacing <code>L</code> by <code>L'</code>.
+    </li>
+  </ul>
+  <p>
+  More details, and illustrative examples, may be found in
+  <a href="https://people.mpi-inf.mpg.de/~mfleury/sat_twl.pdf">this</a> or
+  <a href="https://www.princeton.edu/~chaff/publication/DAC2001v56.pdf"
+    >that</a> paper.
+  </p>
+  <p>
+  A key aspect of this technique is that, since the choice of watched literals
+  is arbitrary (as long as the invariant is respected), there is no need to
+  undo the changes of watched literals when backtracking. Thus, we can use
+  an efficient mutable data structure organizing clauses by watched literals,
+  without any cost when backtracking. In practice, we can associate to each
+  literal a doubly-linked list of clauses where the literal is watched,
+  to obtain constant time removal and insertion of clauses.
+  </p>
+  <p>
+  Adapt <code>src/arrays.ml</code>
+  into <code>src/twl.ml</code> implementing this technique.
+  You should notice a significant speedup, although the resulting
+  prover should still be around 250 times slower than
+  <code>minisat</code>, as indicated by <code>make test</code>.
+  </p>
+
+  <h3>Literal selection heuristics</h3>
+
+  <p>
+  To further improve performance,
+  you can explore the impact of different literal selection heuristics.
+  You might consider random literal selection, as well as
+  some of the classic heuristics such as MAXO, MOMS, MAMS, etc.
+  They are defined, for example, <a
+     href="https://www.cs.ubc.ca/~hutter/EARG.shtml/earg/papers07/lagoudakis01learning.pdf">here</a>.
+  </p>
+  <p>
+  For this part (and this part only) you will obtain different traces.
+  </p>
+
+  </div>
+
+  <h2 class="first">Coding tips for part II</h2>
+
+  <div class="part">
+  <h3>Keep your solvers simple</h3>
+  <p>
+  Do not implement more than what I ask: this means more work but also
+  more opportunities for errors.
+  For your information, I have 124 lines for my <code>arrays</code>
+  solver, and 291 for <code>twl</code>. Both files are self-contained,
+  in particular this line count includes the doubly-linked lists for
+  <code>twl</code>.
+  </p>
+
+  <h3>Do one thing at a time, then test</h3>
+  <p>
+  It will be easier to debug your code if you change one thing at a time,
+  and test each modification, including a verification that the traces did
+  not change on some well-chosen examples.
+  This will notably prevent unwanted changes of selection strategies.
+  This way you can compare the two provers and check that nothing changes
+  besides performance.
+  </p>
+
+  <h3>Do not debug using make</h3>
+  <p>
+  If you encounter a problem, running for example
+  <code>make PROBLEM=problems/1/flake4hv PENALTY=1 test_pingouins</code>,
+  first identify which program triggers the problem (make runs several
+  program one after the other in such targets).
+  If it's <code>minisat</code> it means that your problem encoder
+  produces an ill-formed output. Otherwise, it's one of your programs:
+  focus on debugging its execution; but don't forget to run <code>make</code>
+  each time you run it again to test modifications
+  (<code>make && ...</code> is your friend).</p>
+
+  <h3>How to debug when you get an exception</h3>
+  <p>
+  A backtrace will help a lot.
+  Run again the OCaml program with <code>OCAMLRUNPARAM=b</code> in the
+  environment. You may also need to recompile with a modified Makefile:
+  change the compiler definition to
+  <code>OCAMLOPT = ocamlopt -I src -g</code>, then <code>make clean</code>
+  and recompile everything.
+  When aiming for performance, you may set different compiler options
+  in this way.
+  </p>
+  </div>
+
+
+</body>
+</html>
