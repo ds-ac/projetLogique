@@ -28,6 +28,9 @@ target/%.cmi: src/%.mli |target
 target:
 	mkdir -p target
 
+sat_test:
+	mkdir sat_test
+
 -include .depends
 .depends: Makefile $(wildcard src/*.ml src/*.mli)
 	ocamldep -one-line -native -I src $+ | sed 's,src,target,g' > .depends
@@ -35,19 +38,15 @@ target:
 
 # Testing problem encodings to SAT using minisat
 N=10
-test_latin: latin
-	@mkdir sat_test
-	@cd sat_test
+test_latin: latin sat_test
 	./latin p $(N)
 	minisat problem.cnf output.sat ; ./latin s $(N)
-	@cd ..
+	@mv problem.cnf output.sat sat_test/
 
-test_greek: greek
-	@mkdir sat_test
-	@cd sat_test
+test_greek: greek sat_test
 	./greek p $(N)
 	minisat problem.cnf output.sat ; ./greek s $(N)
-	@cd ..
+	@mv problem.cnf output.sat sat_test/
 
 PROBLEM=problems/0/simple1
 test_pingouins: pingouins
@@ -82,8 +81,9 @@ test: all
 	@m=`cat tests/minisat.time` ; p=`cat tests/prover.time` ; \
 	  echo -n "Ratio: " ; echo "$$p / $$m" | bc
 
-# Cleaning, documentation, code skeleton
 
+
+# Cleaning, documentation, code skeleton
 clean:
 	rm -rf target sat_test
 
