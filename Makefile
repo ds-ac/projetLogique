@@ -5,7 +5,7 @@
 # include the extension TODO
 
 BINARIES_NOSKEL=
-BINARIES=latin greek naive arrays $(BINARIES_NOSKEL)
+BINARIES=latin jr greek naive arrays $(BINARIES_NOSKEL)
 OCAMLOPT = ocamlopt -I src -I target
 
 # Define non-files targets
@@ -46,6 +46,11 @@ test_latin: latin sat_test
 test_greek: greek sat_test
 	./greek p $(N)
 	minisat problem.cnf output.sat ; ./greek s $(N)
+	@mv problem.cnf output.sat sat_test/
+
+test_wang: jr sat_test
+	./jr p $(N)
+	minisat problem.cnf output.sat ; ./jr s $(N)
 	@mv problem.cnf output.sat sat_test/
 
 PROBLEM=problems/0/simple1

@@ -4,7 +4,7 @@ target/dimacs.cmi :
 target/greek.cmx : target/dimacs.cmx
 target/hex.cmx : target/hex.cmi
 target/hex.cmi :
-target/jr.cmx :
+target/jr.cmx : target/dimacs.cmx
 target/latin.cmx : target/dimacs.cmx
 target/naive.cmx : target/dimacs.cmx
 target/tile_cairo.cmx :
