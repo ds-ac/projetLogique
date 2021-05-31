@@ -1,0 +1,15 @@
+src/dimacs.cmx : \
+    src/dimacs.cmi
+src/dimacs.cmi :
+src/greek.cmx : \
+    src/dimacs.cmx
+src/hex.cmx : \
+    src/hex.cmi
+src/hex.cmi :
+src/jr.cmx :
+src/latin.cmx : \
+    src/dimacs.cmx
+src/naive.cmx : \
+    src/dimacs.cmx
+src/tile_cairo.cmx :
+src/tile_graphics.cmx :
