@@ -85,7 +85,7 @@ test: all
 # Cleaning, documentation, code skeleton
 
 clean:
-	rm -rf target
+	rm -rf target sat_test
 
 mrproper: clean
 	rm -f $(BINARIES)
