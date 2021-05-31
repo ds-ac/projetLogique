@@ -1,28 +1,56 @@
+# The initial project Makefile has been modified with the help of Neven's one.
+
 # Add binary names to BINARIES as you progress through the project:
 # they can be problem encoders or SAT solvers; in both cases you must
 # include the extension TODO
 
 BINARIES_NOSKEL=
-BINARIES=latin greek naive $(BINARIES_NOSKEL)
+BINARIES=latin greek naive arrays $(BINARIES_NOSKEL)
+OCAMLOPT = ocamlopt -I src -I target
+
+# Define non-files targets
+.PHONY: skel clean all mrproper doc
 
 all: $(BINARIES) doc
 
-OCAMLOPT = ocamlopt -I src
+
 
 # Targets for compiling both problem encoders and SAT solvers
+%: target/%.cmx
+	$(OCAMLOPT) $(shell cat .depends | grep "^$+" | cut -d: -f2) $+ -o $@
 
-%: src/dimacs.cmx src/hex.cmx src/%.cmx
-	$(OCAMLOPT) $+ -o $@
+target/%.cmx: src/%.ml |target
+	$(OCAMLOPT) -c $< -o $@
+
+target/%.cmi: src/%.mli |target
+	$(OCAMLOPT) -c $< -o $@
+
+target:
+	mkdir -p target
+
+-include .depends
+.depends: Makefile $(wildcard src/*.ml src/*.mli)
+	ocamldep -one-line -native -I src $+ | sed 's,src,target,g' > .depends
+
 
 # Testing problem encodings to SAT using minisat
-
 N=10
 test_latin: latin
+	@mkdir sat_test
+	@cd sat_test
 	./latin p $(N)
 	minisat problem.cnf output.sat ; ./latin s $(N)
+	@cd ..
+	@rm -r sat_test
+
 test_greek: greek
+	@mkdir sat_test
+	@cd sat_test
 	./greek p $(N)
 	minisat problem.cnf output.sat ; ./greek s $(N)
+	@cd ..
+	@rm -r sat_test
+
 PROBLEM=problems/0/simple1
 test_pingouins: pingouins
 	./pingouins p $(PROBLEM)
@@ -59,13 +87,14 @@ test: all
 # Cleaning, documentation, code skeleton
 
 clean:
-	rm -f src/*.cmx src/*.o src/*.cmi
+	rm -rf target
+
+mrproper: clean
 	rm -f $(BINARIES)
 
 doc:
 	ocamldoc -d html/ -stars -html src/dimacs.mli src/hex.mli
 
-.PHONY: skel
 skel:
 	rm -rf skel skel.test
 	mkdir -p skel/src skel/html
@@ -79,13 +108,3 @@ skel:
 	cp -r skel/ skel.test/
 	make -C skel.test
 
-# Generic OCaml compilation targets
-
-%.cmx: %.ml
-	$(OCAMLOPT) -c $<
-%.cmi: %.mli
-	$(OCAMLOPT) -c $<
-
--include .depends
-.depends: Makefile $(wildcard src/*.ml src/*.mli)
-	ocamldep -native -I src $+ > .depends
