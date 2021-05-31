@@ -41,7 +41,6 @@ test_latin: latin
 	./latin p $(N)
 	minisat problem.cnf output.sat ; ./latin s $(N)
 	@cd ..
-	@rm -r sat_test
 
 test_greek: greek
 	@mkdir sat_test
@@ -49,7 +48,6 @@ test_greek: greek
 	./greek p $(N)
 	minisat problem.cnf output.sat ; ./greek s $(N)
 	@cd ..
-	@rm -r sat_test
 
 PROBLEM=problems/0/simple1
 test_pingouins: pingouins
