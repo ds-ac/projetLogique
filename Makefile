@@ -5,7 +5,7 @@
 # include the extension TODO
 
 BINARIES_NOSKEL=
-BINARIES=latin jr greek naive arrays $(BINARIES_NOSKEL)
+BINARIES=latin jr greek naive arrays twl $(BINARIES_NOSKEL)
 OCAMLOPT = ocamlopt -I src -I target
 
 # Define non-files targets

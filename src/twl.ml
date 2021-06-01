@@ -1,3 +1,119 @@
+module type SIG = sig
+	type 'a mlist
+	val create : 'a -> 'a mlist
+	val prec_opt : 'a mlist -> 'a mlist option
+	val prec : 'a mlist -> 'a mlist
+	val next_opt : 'a mlist -> 'a mlist option
+	val next : 'a mlist -> 'a mlist
+	val set : 'a mlist -> 'a -> unit
+	val get : 'a mlist -> 'a
+	val add : 'a mlist -> 'a -> unit
+	val remove : 'a mlist -> unit
+	val iter_l : 'a mlist -> ('a -> unit) -> unit
+	val iter_r : 'a mlist -> ('a -> unit) -> unit
+	val iter : 'a mlist -> ('a -> unit) -> unit
+	val last : 'a mlist -> 'a mlist
+	val first : 'a mlist -> 'a mlist
+	val fold_l : ('a -> 'b -> 'a) -> 'a -> 'b mlist -> 'a
+	val fold_r : ('a -> 'b -> 'a) -> 'a -> 'b mlist -> 'a
+end
+
+
+(** Listes doublement chaînées *)
+
+module MList: SIG = struct
+	type 'a mlist = {
+		mutable value: 'a;
+		mutable next: 'a mlist option;
+		mutable prec: 'a mlist option}
+
+	let create (v: 'a): 'a mlist =
+		{value = v; next = None; prec = None}
+
+	let prec_opt (lst: 'a mlist): 'a mlist option =
+		lst.prec
+
+	let prec (lst: 'a mlist): 'a mlist =
+		match lst.prec with
+		| None -> raise Not_found
+		| Some n -> n
+
+	let next_opt (lst: 'a mlist): 'a mlist option =
+		lst.next
+
+	let next (lst: 'a mlist): 'a mlist =
+		match lst.next with
+		| None -> raise Not_found
+		| Some n -> n
+
+	let set (lst: 'a mlist) (v: 'a): unit =
+		lst.value <- v
+
+	let get (lst: 'a mlist) : 'a =
+		lst.value
+
+	let rec add (lst: 'a mlist) (v: 'a) : unit =
+		match lst.next with
+		| Some n -> add n v
+		| None ->
+			(
+				let new_cell = create v in
+				lst.next <- Some new_cell;
+				new_cell.prec <- Some lst
+			)
+
+
+	let remove (lst: 'a mlist) : unit =
+		match lst.prec, lst.next with
+		| None,   None   -> ()
+		| Some p, None   -> p.next <- None
+		| Some p, Some n -> (p.next <- Some n; n.prec <- Some p)
+		| None,   Some n -> n.prec <- None
+
+	let rec iter_l (lst: 'a mlist) (f: 'a -> unit) : unit =
+		f lst.value;
+		match lst.prec with
+		| None -> ()
+		| Some p -> iter_l p f
+
+	let rec iter_r (lst: 'a mlist) (f: 'a -> unit) : unit =
+		f lst.value;
+		match lst.next with
+		| None -> ()
+		| Some n -> iter_r n f
+
+	let iter (lst: 'a mlist) (f: 'a -> unit) : unit =
+		f lst.value;
+		match lst.prec, lst.next with
+		| None,   None   -> ()
+		| Some p, None   -> iter_l p f
+		| Some p, Some n -> iter_r n f; iter_l p f
+		| None,   Some n -> iter_r n f
+
+	let rec last (lst: 'a mlist) : 'a mlist =
+		match lst.next with
+		| None -> lst
+		| Some n -> last n
+
+	let rec first (lst: 'a mlist) : 'a mlist =
+		match lst.prec with
+		| None -> lst
+		| Some p -> first p
+
+	let rec fold_l (f: 'a -> 'b -> 'a) (start: 'a) (lst: 'b mlist) : 'a =
+		match lst.prec with
+		| None -> f start lst.value
+		| Some p -> fold_l f (f start lst.value) p
+
+
+	let rec fold_r (f: 'a -> 'b -> 'a) (start: 'a) (lst: 'b mlist) : 'a =
+		match lst.next with
+		| None -> f start lst.value
+		| Some n -> fold_r f (f start lst.value) n
+end
+
+
+
 (** Variables (i.e. propositional constants) are represented by positive
 	* integers. Literals are arbitrary integers: for any variable X coded
 	* as a positive integer [n], the positive literal X is represented by
@@ -22,7 +138,7 @@ let pp_model chan m =
 	Format.fprintf chan "[#%d:" (nb_assigned) ;
 	Array.iteri
 		(fun idx elt ->
-			if elt && idx <> 0 then
+			if elt then
 				Format.fprintf chan " %d" (if m.(1).(idx) then idx else -idx))
 		m.(0);
 	Format.fprintf chan "]"
@@ -44,8 +160,6 @@ let print_trace =
  * over successive refinements of your implementation. *)
 let debug =
 	try ignore (Sys.getenv "DEBUG") ; true with Not_found -> false 
-
-
 
 (** Run DPLL for current Dimacs problem. *)
 let dpll out =
