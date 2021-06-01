@@ -66,15 +66,15 @@ tests_pingouins: pingouins
 # Testing the SAT solver
 
 PROVER=./twl
-in_test: all
+in_test: all sat_test
 	@for i in tests/SAT/* ; do \
-	  echo -n "$$i... " ; \
-	  $(PROVER) $$i output.sat ; \
-	  grep -v UNSAT output.sat > /dev/null || exit 1 ; done
+		echo -n "$$i ..." ; \
+		$(PROVER) $$i "sat_test$${i##tests/SAT}.sat" ; \
+		grep -v UNSAT "sat_test$${i##tests/SAT}.sat" > /dev/null || exit 1 ; done
 	@for i in tests/UNSAT/* ; do \
-	  echo -n "$$i... " ; \
-	  $(PROVER) $$i output.sat ; \
-	  grep UNSAT output.sat > /dev/null || exit 1 ; done
+		echo -n "$$i... " ; \
+		$(PROVER) $$i "sat_test$${i##tests/UNSAT}.sat" ; \
+		grep -v UNSAT "sat_test$${i##tests/UNSAT}.sat" > /dev/null && exit 1 ; done
 test: all
 	@echo Timing tests with minisat...
 	@time --output=tests/minisat.time --format=%U \
