@@ -19,7 +19,6 @@ let sat m l =
 (** Return new partial assignment where a previously unassigned literal
 	* is set to true. *)
 let add m l =
-	Format.printf "Adding %d\n" l;
 	if l > 0 then (l,true)::m else (-l,false)::m
 
 (** Indicates whether a litteral is assigned in a partial assignment. *)
@@ -84,11 +83,9 @@ let dpll out =
 					try
 						List.iter
 							(fun l ->
-									Format.printf "%d " l;
 									if sat m l then raise Break ;
 									if not (assigned m l) then unassigned := l)
 							c ;
-						Format.printf "Hey %d\n" !unassigned;
 						assert (!unassigned <> 0) ;
 						raise (Found !unassigned)
 					with Break -> ())
