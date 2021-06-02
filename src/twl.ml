@@ -142,15 +142,39 @@ end
 
 
 
+
+
 (*       -------      TWL Algorithm related code below      -------          *)
+
+
 
 (** Variables (i.e. propositional constants) are represented by positive
 	* integers. Literals are arbitrary integers: for any variable X coded
 	* as a positive integer [n], the positive literal X is represented by
 	* [n] and not(X) is represented by [-n].
 	*
-	* A partial assignment [m] is an association list from variables
-	* (i.e. positive literals) to booleans. *)
+	* A partial assignment [m] is a matrix of size [2 x (n+1)] of booleans where n
+	* is the number of variables to be assgned in the SAT problem. The first line
+	* represents whether a litteral has already been assigned or not, and the
+	* second line represents the value of assigned litterals.
+	*
+	* e.g. if [(0, 5)] and [(1, 5)] are both set to [true], it means that at this
+	* point of the execution, the litteral represented by the integer 5 is
+	* assigned to [true], but if [(0, 5)] is [false], then it is not assigned,
+	* whatever the value of [(1, 5)] is.
+	*
+	*
+	*
+	* The stack represents changes made by each successive calls of dpll in the
+	* current branch of the assignment tree.
+	* Before the execution of the main call, the stack is empty.
+	* Before each recursive call, 0 is added on the stack. As this value does not
+	* represent any litteral, it does not mean anything in the stack.
+	* If the dpll function does not raise SAT, and stops, every alternate value is
+	* set back to unassigned and the stack returns to its origilan form. In such a
+	* case, there is no need to add 0 to the stack again as there is no more
+	* possible values to try for the current litteral.
+	*)
 
 exception Conflict
 exception SAT
@@ -168,7 +192,7 @@ let pp_model chan m =
 	Format.fprintf chan "[#%d:" (nb_assigned) ;
 	Array.iteri
 		(fun idx elt ->
-			if elt then
+			if elt && idx <> 0 then
 				Format.fprintf chan " %d" (if m.(1).(idx) then idx else -idx))
 		m.(0);
 	Format.fprintf chan "]"
@@ -191,13 +215,24 @@ let print_trace =
 let debug =
 	try ignore (Sys.getenv "DEBUG") ; true with Not_found -> false 
 
+
+
 (** Run DPLL for current Dimacs problem. *)
 let dpll out =
 	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false in
 
 	(* Get clauses as lists of integers. *)
 	let clauses =
-		List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()) in
+		List.map
+			(fun c ->
+				match c with
+				| [] -> failwith "Null clause."
+				| [h] -> (h, h, c)
+				| h :: h' :: t -> (h, h', c)
+				)
+			( (* List of list of integers representing a list of clauses *)
+				List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()))
+	in
 
 	let stack = Stack.create () in
 
@@ -228,7 +263,7 @@ let dpll out =
 	(** One-step propagation. *)
 	let propagate_step clauses =
 		List.fold_left
-		(fun b c ->
+		(fun b (_, _, c) ->
 			if List.exists (fun l -> sat l) c then b else
 				match List.filter (fun l -> not (sat (-l))) c with
 				| [] -> raise Conflict
@@ -245,7 +280,7 @@ let dpll out =
 	let rec find_unassigned () =
 		try
 			List.iter
-				(fun c ->
+				(fun (_, _, c) ->
 					let unassigned = ref 0 in
 					try
 						List.iter
