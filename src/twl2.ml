@@ -230,8 +230,8 @@ let dpll out =
 		clauses
 	in
 
-	let rec propagate n =
-		if propagate_step clauses then propagate (n+1); 
+	let rec propagate () =
+		if propagate_step clauses then propagate (); 
 	in
 
 	let rec find_unassigned () =
@@ -259,7 +259,7 @@ let dpll out =
 	let rec dpll () =
 		print_trace m ;
 		if debug then Format.printf "> %a@." pp_model m ;
-		match propagate 0 with
+		match propagate () with
 			| exception Conflict -> ()
 			| _ -> 
 					let l = find_unassigned () in
