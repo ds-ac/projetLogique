@@ -235,34 +235,12 @@ let dpll out =
 	 * and add them to the global array.
 	 *)
 	let clauses =
-		(** let pp_clause chan c =
-			Format.fprintf chan "[";
-			List.iter
-				(fun i -> Format.fprintf chan "%3d \\/ " i)
-				c;
-			Format.printf "\b\b\b\b]   "
-		in
-		let pp_mlist chan ml =
-			Format.fprintf chan "(";
-			MList.iter
-				ml
-				(fun (_, _, l) -> Format.printf "\n\t\t\t\t\t%a" pp_clause l);
-			Format.fprintf chan ")"
-		in *)
 		let add_clause (i, i', c) =
 			let idx = if i > 0 then i else -i
 			and idx' = if i' > 0 then i' else -i'
 			in
-			(*Format.printf "\n%3d, %3d => %a\n\t\t\t%3d: %a\n\t\t\t%3d: %a\n"
-				idx idx' pp_clause c
-				idx pp_mlist clauses_array.(idx)
-				idx' pp_mlist clauses_array.(idx');*)
 			clauses_array.(idx) <- MList.add clauses_array.(idx) (i, i', c);
 			clauses_array.(idx') <- MList.add clauses_array.(idx') (i, i', c);
-			(*Format.printf "%12s%a\n\t\t\t%3d: %a\n\t\t\t%3d: %a\n" ""
-				pp_clause c
-				idx pp_mlist clauses_array.(idx)
-				idx' pp_mlist clauses_array.(idx');*)
 			(idx, idx', c)
 		in
 		List.map
@@ -358,20 +336,6 @@ let dpll out =
 						dpll ()
 	in
 	try
-		(**Array.iteri
-			(fun i c ->
-				Format.printf "\nClauses wached by %d:\n" i;
-				MList.iter
-					c
-					(fun (idx, idx', lily) -> 
-						Format.printf "\t";
-						List.iter
-							(fun i -> Format.printf "%d " i)
-							lily;
-						Format.printf "\n";
-					);
-				)
-			clauses_array;*)
 		dpll ();
 		Format.printf "UNSAT\n" ;
 		Printf.fprintf out "UNSAT\n"
