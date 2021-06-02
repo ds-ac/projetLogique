@@ -1,12 +1,6 @@
 module type SIG = sig
 	type 'a mlist
 	val create: 'a mlist
-	val prec_opt: 'a mlist -> 'a mlist option
-	val prec: 'a mlist -> 'a mlist
-	val next_opt: 'a mlist -> 'a mlist option
-	val next: 'a mlist -> 'a mlist
-	val set: 'a mlist -> 'a -> unit
-	val get: 'a mlist -> 'a
 	val add: 'a mlist ->'a -> 'a mlist
 	val remove: 'a mlist -> 'a -> 'a mlist
 	val iter_l: 'a mlist -> ('a -> unit) -> unit
@@ -35,36 +29,6 @@ module MList: SIG = struct
 
 	let create : 'a mlist =
 		Empty
-
-	let prec_opt (lst: 'a mlist): 'a mlist option =
-		match lst with
-		| Element c -> Some c.prec
-		| Empty -> None
-
-	let prec (lst: 'a mlist): 'a mlist =
-		match lst with
-		| Element c -> c.prec
-		| Empty -> raise Not_found
-
-	let next_opt (lst: 'a mlist): 'a mlist option =
-		match lst with
-		| Element c -> Some c.next
-		| Empty -> None
-
-	let next (lst: 'a mlist): 'a mlist =
-		match lst with
-		| Element c -> c.next
-		| Empty -> raise Not_found
-
-	let set (lst: 'a mlist) (v: 'a): unit =
-		match lst with
-		| Element c -> c.value <- v
-		| Empty -> failwith("set applied to Empty.")
-
-	let get (lst: 'a mlist) : 'a =
-		match lst with
-		| Element c -> c.value
-		| Empty -> failwith("get applied to Empty.")
 
 	let rec add (lst: 'a mlist) (v: 'a) : 'a mlist =
 		match lst with
@@ -144,13 +108,6 @@ module MList: SIG = struct
 end
 
 
-
-
-
-(*       -------      TWL Algorithm related code below      -------          *)
-
-
-
 (** Variables (i.e. propositional constants) are represented by positive
 	* integers. Literals are arbitrary integers: for any variable X coded
 	* as a positive integer [n], the positive literal X is represented by
@@ -222,40 +179,20 @@ let debug =
 
 (** Run DPLL for current Dimacs problem. *)
 let dpll out =
-	(* Creation of usefull data structures:
-	 * + [m] is the matrix representing the partial assigning ;
-	 * + [clauses_array] is the array of doubled chaines lists of clauses. Each
-	 *     | cell i contains the list of clauses indexed by the litteral i ;
-	 * + [stack] is the stack that stores changes applied during sucessive [dpll]
-	 *     | calls.
-	 *)
 	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false
-	and clauses_array = Array.make (Dimacs.nb_variables () + 1) MList.create
 	and stack = Stack.create ()
+	and clauses =
+		Array.of_list
+			(List.map
+				(fun c ->
+					match c with
+					| [] -> failwith "empty clause."
+					| [h] -> (h, h, c)
+					| h :: h' :: t -> (h, h, c))
+				(List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ())))
 	in
 
-	(* Get clauses as lists of int * int * int list
-	 * and add them to the global array.
-	 *)
-	let clauses: (int * int * int list) list =
-		let add_clause (i, i', c) =
-			let idx = if i > 0 then i else -i
-			and idx' = if i' > 0 then i' else -i'
-			in
-			clauses_array.(idx) <- MList.add clauses_array.(idx) (i, i', c);
-			clauses_array.(idx') <- MList.add clauses_array.(idx') (i, i', c);
-			(idx, idx', c)
-		in
-		List.map
-			(fun c ->
-				match c with
-				| [] -> failwith "Null clause."
-				| [h] -> add_clause (h, h, c)
-				| h :: h' :: t -> add_clause (h, h', c)
-				)
-			( (* List of list of integers representing a list of clauses *)
-			List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()))
-	in
+
 
 	 (** [sat m l] indicates whether a literal is satisfied by a partial
 	 * assignment. Satisfaction is always false for unassigned literals. *)
@@ -280,61 +217,26 @@ let dpll out =
 		m.(0).(if l > 0 then l else -l)
 	in
 
-	(** Remove an index on a particular clause. *)
-	let unindex index clause =
-		let idx, idx', lily = clause in
-		(* Remove the clause from clauses_array.(idx) *)
-		clauses_array.(idx) <- MList.remove clauses_array.(idx) clause;
-		(* Remove the clause from clauses_array.(idx') *)
-		clauses_array.(idx') <- MList.remove clauses_array.(idx') clause;
-		(* Find new indexes (the 2nd one is the same as the 1st one if no choice) *)
-		let new_idx = (if (abs index) = idx then idx' else idx) in
-		let new_idx' =
-			List.fold_left
-				(fun default i ->
-					let choice = if i > 0 then i else -i in
-					if not (assigned choice) && new_idx <> choice then choice else default
-				)
-				new_idx
-				lily
-		in
-		(* Add it back to clauses_array.(new_idx) *)
-		clauses_array.(new_idx) <- MList.add clauses_array.(new_idx) clause;
-		(* Add it back to clauses_array.(new_idx') *)
-		clauses_array.(new_idx') <- MList.add clauses_array.(new_idx') clause
-		(* Update clauses *)
-	in
-
 	(** One-step propagation. *)
 	let propagate_step clauses =
-		List.fold_left
-		(fun b (idx, idx', c) ->
+		Array.fold_left
+		(fun b (_, _, c) ->
 			if List.exists (fun l -> sat l) c then b else
 				match List.filter (fun l -> not (sat (-l))) c with
 				| [] -> raise Conflict
-				| [l] -> unindex l (idx, idx', c); add l; true
+				| [l] -> add l; true
 				| l::_ -> b)
 		false
 		clauses
 	in
 
-	let rec propagate () =
-		let filtered_clauses =
-			List.filter
-				(fun (idx, idx', l) ->
-					(Stack.is_empty stack)
-					||
-					(
-						let top = Stack.top stack in
-						idx = top || idx' = top))
-				clauses
-		in
-		if propagate_step filtered_clauses then propagate (); 
+	let rec propagate n =
+		if propagate_step clauses then propagate (n+1); 
 	in
 
 	let rec find_unassigned () =
 		try
-			List.iter
+			Array.iter
 				(fun (_, _, c) ->
 					let unassigned = ref 0 in
 					try
@@ -357,7 +259,7 @@ let dpll out =
 	let rec dpll () =
 		print_trace m ;
 		if debug then Format.printf "> %a@." pp_model m ;
-		match propagate () with
+		match propagate 0 with
 			| exception Conflict -> ()
 			| _ -> 
 					let l = find_unassigned () in

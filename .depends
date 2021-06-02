@@ -10,3 +10,4 @@ target/naive.cmx : target/dimacs.cmx
 target/tile_cairo.cmx :
 target/tile_graphics.cmx :
 target/twl.cmx : target/dimacs.cmx
+target/twl2.cmx : target/dimacs.cmx
