@@ -219,19 +219,30 @@ let debug =
 
 (** Run DPLL for current Dimacs problem. *)
 let dpll out =
-	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false in
+	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false
+	and clauses_array = Array.make (Dimacs.nb_variables () + 1) MList.create
+	in
 
-	(* Get clauses as lists of integers. *)
+	(* Get clauses as lists of int * int * int list and add them to the global
+	array *)
 	let clauses =
+		let add_clause (i, i', c) =
+			let idx = if i > 0 then i else -i
+			and idx' = if i' > 0 then i' else -i'
+			in
+			clauses_array.(idx) <- MList.add clauses_array.(idx) (i, i', c);
+			clauses_array.(idx') <- MList.add clauses_array.(idx) (i, i', c);
+			(idx, idx', c)
+		in
 		List.map
 			(fun c ->
 				match c with
 				| [] -> failwith "Null clause."
-				| [h] -> (h, h, c)
-				| h :: h' :: t -> (h, h', c)
+				| [h] -> add_clause (h, h, c)
+				| h :: h' :: t -> add_clause (h, h', c)
 				)
 			( (* List of list of integers representing a list of clauses *)
-				List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()))
+			List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()))
 	in
 
 	let stack = Stack.create () in
