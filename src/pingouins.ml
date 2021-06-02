@@ -1,239 +1,249 @@
-let problemFile = "PROBLEM" |> Sys.getenv
-let penalty = "PENALTY" |> Sys.getenv |> int_of_string
+exception Found
 
-let start, grid = Hex.from_channel (open_in problemFile);;
-let width = Array.length grid and height = Array.length grid.(0);;
-let maxWidthHeight = max width height;;
+(** Get the penalty value from the corresponding environment variable. *)
+let penalty = Sys.getenv "PENALTY" |> int_of_string
 
-let cases = ref 0;;
-for x' = 0 to width - 1 do
-    for y' = 0 to height - 1 do
-        if grid.(x').(y') then (incr cases)
-    done;
-done;;
+(** Count the cardinal of the ice set*)
+let get_ice_size bool_ice =
+	Array.fold_left
+		(fun nb arr ->
+			Array.fold_left
+			(fun nb elt -> if elt then 1 + nb else nb)
+			nb
+			arr)
+		0
+		bool_ice
 
-let steps = !cases - penalty;;
+(** Make the domain for the problem from the ice state.
+ * There will be one for the pingouin positions through time and one for the ice
+ * evolution throught time:
+ * → [ice_size] is the (initial) cardinal of the set of the ice poritions.
+ * → [moves.(i).(j).(t)] should be set to [true] iff the pingouin is at (i, j)
+ *    at the time t (i.e. after t moves).
+ * → [ice.(i).(j).(t)] should be set to [true] iff there is ice at (i, j) at
+ *    the time t.
+ * NB: the time is less or equal to the initial number of frozen locations minus
+ * the chosen penalty for the resolution.
+ *)
+let domain ice_state =
+	let ice_size = get_ice_size ice_state
+	and height = Array.length ice_state
+	and width = Array.length ice_state.(0) in
+	let moves = Dimacs.(make (height**width**(ice_size - penalty)**o))
+	and ice_locs = Dimacs.(make (height**width**(ice_size - penalty)**o)) in
+	ice_size, height, width, moves, ice_locs
 
-(* banquise, pingouin *)
-let domain () =
-    let banquise, pingouin = Dimacs.(make (width**height**(!cases)**o)), Dimacs.(make (width**height**(!cases)**o)) in (* la troisième dimension est le temps *)
-	for x' = 0 to width - 1 do
-		for y' = 0 to height - 1 do
-			if grid.(x').(y') then Dimacs.(add_clause [banquise.(x').(y').(0)])
-		done;
-	done;
-	banquise, pingouin
 
-(* doit empêcher d'être à deux endroits en même temps (au lieu de tout énumérer pourrait juste traiter les cases que l'on considère *)
-(* doit autoriser que les mouvements valides *)
+(** Write the problem under the SAT form. *)
+let problem file =
+	let pos_init, ice_state = Hex.from_channel (open_in file) in
+	let ice_size, height, width, moves, ice_locs = domain ice_state in
+	let ice = (* get an array of the ice locations *)
+		let result = Array.make ice_size (-1,-1)
+		and idx = ref 0 in
+		Array.iteri
+			(fun i arr ->
+				Array.iteri
+					(fun j b ->
+						if b then (result.(!idx) <- (i,j); incr idx))
+					arr)
+			ice_state;
+		result
+	in
 
-let dirAndDistance x' y' x'' y'' =
-	(*let rec aux x y l =
-		if x = x'' 
-	in aux [];;*)
-	(*print_string "hey0\n";*)
-	let dir = ref Hex.N and distance = ref 0 and i = ref 1 in
-	while !i <= maxWidthHeight && !distance = 0 do
-		let rec aux l = match l with
-		| dir'::q -> if (Hex.move_n (x', y') (dir', !i)) = (x'', y'') then (dir := dir'; distance := maxWidthHeight); aux q
-		| [] -> ()
-		in aux Hex.all_directions;
-		incr i;
-	done;
-	(*print_string "hey1\n";*)
-	!dir, !distance;;
-	
-let positionsTo x' y' x'' y'' =
-	let dir, distance = dirAndDistance x' y' x'' y'' in
-	if distance <> 0 then
-	(
-		(*print_string "hey\n";*)
-		let rec aux x y i l =
-			if x = x'' && y = y''
-			then l
-			else (let (x''', y''') = (Hex.move_n (x', y') (dir, i)) in aux x''' y''' (i+1) ((x''', y''')::l))
-		in aux x' y' 1 []
-	)
-	else
-		[]
+	(** Print the ice_state to solve. *)
+	Hex.pp_bool_grid Format.std_formatter ice_state;
 
-let allWithout x' y' =
-    let l = ref [] in
-    for x'' = 0 to width-1 do
-        for y'' = 0 to height-1 do
-            if grid.(x'').(y'') && x'' <> x' && y'' <> y' then
-                l := (x'', y'')::(!l)
-        done
-    done;
-    !l;;
+	(**   ---   Initial conditions   ---   *)
 
-let aled x k =
-    let l = ref [] in
-    for x' = 0 to width-1 do
-        for y' = 0 to height-1 do
-            (*print_string "h0: "; print_int x'; print_char ' '; print_int y'; print_char ' '; print_int k; print_char ' '; print_int (!cases); print_string " (";  print_string ")"; print_string "\n";*)
-            if grid.(x').(y') then
-                ((*print_int k; print_char ' ';*)
-                l := (x.(x').(y').(k))::(!l))
-        done
-    done;
-    !l;;
+	(** Set up the litterals ice_locs.(_).(_).(0) (state of the ice at time 0). *)
+	Array.iteri
+		(fun i (a, b) ->
+			Dimacs.(add_clause [ice_locs.(a).(b).(0)]))
+		ice;
 
-let problem n =
-    let banquise, pingouin = domain () in
-	(* forcer *)
-	for t = 0 to steps - 1 do
-		for x' = 0 to width-1 do
-			for y' = 0 to height-1 do
-				Dimacs.(add_clause [banquise.(x').(y').(t); not pingouin.(x').(y').(t)])
-			done
-		done
-	done;
-	(* valide *)
-	for t = 0 to steps - 2 do
-		for x' = 0 to width-1 do
-			for y' = 0 to height-1 do
-				Dimacs.(add_clause [not pingouin.(x').(y').(t); not banquise.(x').(y').(t + 1)])
-			done
-		done
-	done;
-	
-	(* plus de banquise = plus de banquise ! *)
-	for t = 0 to steps - 1 do
-		for x' = 0 to width-1 do
-			for y' = 0 to height-1 do
-				for t' = t + 1 to steps - 2 do
-					Dimacs.(add_clause [banquise.(x').(y').(t); not banquise.(x').(y').(t')])
-				done
-			done
-		done
-	done;
-	
-	(* si pas de banquise, pas de glisse *)
-	(*print_string "yes\n";*)
-	(*for t = 0 to steps - 2 do
-		(*print_string "ho\n";*)
-		for x' = 0 to width-1 do
-			for y' = 0 to height-1 do
-				for x'' = 0 to width-1 do
-					for y'' = 0 to height-1 do
-						if x' <> x'' || y' <> y'' then
+	(** Set up the litterals moves.(_).(_).(0) (state of the pingouin location at
+	 * time 0).
+	 *)
+	Dimacs.(add_clause [moves.(fst pos_init).(snd pos_init).(0)]);
+
+	(**   ---   moves constraints   ---   *)
+
+	(* The pingouin cannot stand on water *)
+	Array.iter
+		(fun(i, j) ->
+			Array.iter2
+				(fun i m ->
+				Dimacs.(
+					add_clause
+						[i; not m]))
+				ice_locs.(i).(j)
+				moves.(i).(j)
+		)
+		ice;
+
+	(** The pingouin cannot go to a location containing water in the initial game,
+	 * and there will never be ice on a position that was initially frozen.
+	 *)
+	Array.iteri
+		(fun i arr ->
+			Array.iteri
+				(fun j state ->
+					if not state then
 						(
-							if grid.(x').(y') && grid.(x'').(y'') then
-							(
-								let l' = positionsTo x' y' x'' y'' in
-								(*print_int (List.length l');*)
-								let rec aux l = match l with
-								| (x''', y''')::q -> Dimacs.(add_clause [not pingouin.(x').(y').(t); banquise.(x''').(y''').(t); not pingouin.(x'').(y'').(t + 1)]); aux q
-								| [] -> ()
-								in aux l'
-							)
+						Array.iter2
+							(fun m i -> Dimacs.(add_clause [not m; not i]))
+							moves.(i).(j)
+							ice_locs.(i).(j)
 						)
-					done
+				)
+				arr
+		)
+		ice_state;
+
+	(** The pingouin cannot use flooded locations to move. *)
+	for t = 1 to ice_size - penalty - 1 do
+		List.iter
+			(fun dir ->
+				Array.iter
+					(fun (i, j) ->
+						let new_pos = ref (Hex.move (i, j) dir)
+						and available_moves = ref []
+						in
+						while ice_state.(fst !new_pos).(snd !new_pos) do
+							List.iter
+								(fun (i', j') ->
+									(Dimacs.
+										(add_clause
+											[not moves.(i).(j).(t-1);
+											ice_locs.(i').(j').(t-1);
+											not moves.(fst !new_pos).(snd !new_pos).(t)])))
+							!available_moves;
+							available_moves := !new_pos::!available_moves;
+							new_pos := (Hex.move !new_pos dir)
+						done)
+					ice)
+			Hex.all_directions
+	done;
+
+	(** The pingouin stands on exacly one position at all time [t]. *)
+	for t = 0 to ice_size - penalty - 1 do
+		(** At any time [t], there is at least a position where the pingouin
+		 * stands.
+		 *)
+		Dimacs.(
+			add_clause
+				(bigor
+					ice_size
+					(fun n -> moves.(fst ice.(n)).(snd ice.(n)).(t))));
+		(** At any time [t], there is only location s.t. [x.(i).(j).(t)] *)
+		Array.iteri
+			(fun i arr ->
+				Array.iteri
+				(fun j m ->
+					(** Consider another location m at time [t] *)
+					Array.iteri
+						(fun i' arr' ->
+							Array.iteri
+								(fun j' m' ->
+									if (i, j) <> (i', j') then
+										Dimacs.(add_clause [not m.(t); not m'.(t)])
+								)
+								arr'
+						)
+						moves
+				)
+				arr
+			)
+			moves
+	done;
+
+	(** For any move, there is a direction in which it is achieved *)
+	for t = 1 to ice_size - penalty - 1 do
+		Array.iter
+			(fun (i, j) ->
+				let available_moves = ref [] in
+				List.iter
+					(fun dir ->
+						let new_pos = ref (Hex.move (i, j) dir) in
+							while ice_state.(fst !new_pos).(snd !new_pos) do
+								available_moves := !new_pos::!available_moves;
+								new_pos := (Hex.move !new_pos dir)
+							done)
+					Hex.all_directions;
+				let available_moves_array = Array.of_list !available_moves in
+				Dimacs.(
+					add_clause
+						((not moves.(i).(j).(t-1))
+							::
+							(bigor
+								(Array.length available_moves_array)
+								(fun n ->
+									let i, j = (fst available_moves_array.(n), snd available_moves_array.(n))
+									in
+									moves.(i).(j).(t))))))
+			ice
+	done;
+
+	(** The pingouin cannot get twice at the same position, at the position would
+	 * not be frozen the second time.
+	 *)
+	Array.iter(* iterate on every initially frozen location. *)
+		(fun (i, j) ->
+			for t = 0 to ice_size - penalty - 1 do
+				for t' = t + 1 to ice_size - penalty - 1 do
+					Dimacs.(
+						add_clause
+							[not moves.(i).(j).(t); not moves.(i).(j).(t')])
 				done
 			done
-		done
-	done;*)
-	
-	(* si pas de banquise, pas de glisse *)
-	(*for t = 0 to steps - 1 do
-		for x' = 0 to width-1 do
-			for y' = 0 to height-1 do
-				if grid.(x').(y') then
-					Dimacs.(add_clause [banquise.(x').(y').(t); not banquise.(x').(y').(t')])
+		)
+		ice;
+
+	(**   ----   Ice constraints   ---   *)
+
+	(** A flood location cannot freeze again. *)
+	Array.iter
+		(fun (i, j) ->
+			for t = 0 to ice_size - penalty - 1 do
+				for t' = t + 1 to ice_size - penalty - 1 do
+					Dimacs.(
+						add_clause
+							[ice_locs.(i).(j).(t);
+							not ice_locs.(i).(j).(t')])
+				done
 			done
-		done
-	done;*)
-	
-    (* not at two places at once, max à un endroit *)
-	for k = 0 to !cases-1 do
-        for x' = 0 to width-1 do
-            for y' = 0 to height-1 do
-                for x'' = 0 to width-1 do
-                    for y'' = 0 to height-1 do
-                        if x'' <> x' && y'' <> y' then
-                            Dimacs.(add_clause [not pingouin.(x').(y').(k); not pingouin.(x'').(y'').(k)])
-                    done
-                done
-            done
-        done
-    done;
+		)
+		ice;
 
-    (* faire que doit bouger sur une nouvelle case à chaque fois, la factorielle pour décrire chaque chemin c'est mal, dire à chaque time step de changer de case peut être mieux *)
-    (* complexité *)
-    (* factorielle: cases! *)
-    (* pas à pas: (cases * cases) * cases  *)
-    (* could use hash table not to list all and check if on grid each time *)
-    (*for k = 0 to !cases-2 do
-        for x' = 0 to width-1 do
-            for y' = 0 to height-1 do
-                for x'' = 0 to width-1 do
-                    for y'' = 0 to height - 1 do
-                        if grid.(x'').(y'') && x'' <> x' && y'' <> y' then
-                            Dimacs.(add_clause [])
-                    done
-                done
-            done
-        done
-    done;*)
-    (* this makes it move each time but we need the melting part ! *)
-    (*310521
-	for k = 0 to !cases-2 do
-        for x' = 0 to width-1 do
-            for y' = 0 to height-1 do
-                Dimacs.(add_clause [not pingouin.(x').(y').(k); not pingouin.(x').(y').(k+1)])
-            done
-        done
-    done;*) (*qd tu c qu'un pinguin est à un endroit, tu sais qu'il n'y sera plus*)
+	(** Frozen locations turn into flooded locations *)
+	Array.iter
+		(fun (i, j) ->
+			for t = 0 to ice_size - penalty - 2 do
+				Dimacs.(
+					add_clause
+						[not moves.(i).(j).(t);
+						not ice_locs.(i).(j).(t + 1)])
+			done)
+		ice
 
-    (* x', y', k *)
-    (* not x.(x').(y').(k); not x.(x').(y').(k+1) *)
+let solution file =
+	let pos_init, ice_state = Hex.from_channel (open_in file) in
+	let ice_size, height, width, moves, ice_locs = domain ice_state in
+	let m = Dimacs.read_model (open_in "output.sat") in
 
-    (* faire que chaque mouvement doit être valide, implémenter fonction prog2 liste des mouvements dispo ? *)
+	(* Finding the path *)
+	let path = Array.make (ice_size - penalty) (0, 0) in
+	for t = 0 to ice_size - penalty - 1 do
+		try(** There is only one interesting location at time [t]. *)
+			for i = 0 to height - 1 do
+				for j = 0 to width - 1 do
+					if Dimacs.sat m moves.(i).(j).(t) then
+						(path.(t) <- (i,j); raise Found)
+				done
+			done
+		with Found -> ()
+	done;
+	Hex.pp_solution Format.std_formatter ice_state path
 
-	(*print_int (fst start); print_char ','; print_int (snd start); print_newline();*)
-    Dimacs.(add_clause [pingouin.(1).(1).(1)]);
-    (*Dimacs.(add_clause [pingouin.(fst start).(snd start).(1)]);*)
-
-    (*let alled = all x in*)
-    (* au moins un endroit à chaque time step *)
-    for k = 0 to steps-1 do
-        Dimacs.(add_clause (aled pingouin k))
-    done;;
-
-(* take into consideration penalty for modelization *)
-
-(* lister en ou toutes les positions au temps 1 et ainsi de suite tout en vérifiant qu'il ne peut pas être à 2 endroits en même temps *)
-(* moi je vais lister les chemins en OU de ET et utiliser un truc pour passer à CNF - on a le droit ? DIMACS ne gère pas DNF faisong le à la main ?*)
-
-(* attention il y a une position de départ *)
-(* returns list of list when each sub list is a path for a given origin *)
-(*let paths grid origin =
-    let all_dirs = Hex.all_directions 
-    let rec aux l =
-
-    in aux []*) (*well all_directions ne liste pas les différentes possibilités à un moment donné, utilisé prog2 semble trop complexe *)
-
-let solution n =
-    let banquise, pingouin = domain () and m = Dimacs.read_model (open_in "output.sat") in
-    Hex.pp_bool_grid Format.std_formatter grid;
-    (*let bGrid = Array.make_matrix width height false in*)
-    let positions = ref [] in
-    for k = 0 to !cases-1 do
-        for x' = 0 to width-1 do
-            for y' = 0 to height-1 do
-                (*bGrid.(y).(x') <- Dimacs.sat m x.(y).(x').(k)*)
-                if (Dimacs.sat m pingouin.(x').(y').(k)) then
-                (
-                    (*print_int x'; print_char ' '; print_int y'; print_string "\n";*)
-                    positions := (x', y')::(!positions)
-                )
-            done
-        done
-    done;
-	positions := List.rev !positions; (* likewise chronological *)
-    (*print_int width; print_char ' '; print_int height; print_string "\n";*)
-    Hex.pp_solution Format.std_formatter grid(*bGrid*) (Array.of_list (!positions))
-
-let () =
-    Dimacs.run ~problem ~solution
+let () = Dimacs.run ~problem ~solution

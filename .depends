@@ -7,6 +7,7 @@ target/hex.cmi :
 target/jr.cmx : target/dimacs.cmx
 target/latin.cmx : target/dimacs.cmx
 target/naive.cmx : target/dimacs.cmx
+target/pingouins.cmx : target/hex.cmx target/dimacs.cmx
 target/tile_cairo.cmx :
 target/tile_graphics.cmx :
 target/twl.cmx : target/dimacs.cmx

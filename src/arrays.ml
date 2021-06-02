@@ -69,16 +69,13 @@ let debug =
 
 (** Run DPLL for current Dimacs problem. *)
 let dpll out =
-	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false in
-
+	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false
 	(* Get clauses as lists of integers. *)
-	let clauses =
-		List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()) in
+	and clauses =
+		List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ())
+	and stack = Stack.create () in
 
-	let stack = Stack.create () in
-
-
-	 (** [sat m l] indicates whether a literal is satisfied by a partial
+	(** [sat m l] indicates whether a literal is satisfied by a partial
 	 * assignment. Satisfaction is always false for unassigned literals. *)
 	let sat l =
 		if l > 0 then
@@ -137,7 +134,6 @@ let dpll out =
 			raise (SAT)
 		with Found i -> i
 	in
-
 
 	(* DPLL algorithm. *)
 	let rec dpll () =

@@ -5,7 +5,7 @@
 # include the extension TODO
 
 BINARIES_NOSKEL=
-BINARIES=latin jr greek naive arrays twl twl2 $(BINARIES_NOSKEL)
+BINARIES=latin jr greek naive arrays twl pingouins $(BINARIES_NOSKEL)
 OCAMLOPT = ocamlopt -I src -I target
 
 # Define non-files targets
@@ -41,7 +41,7 @@ N=10
 test_latin: latin sat_test
 	./latin p $(N)
 	minisat problem.cnf output.sat ; ./latin s $(N)
-	@mv problem.cnf output.sat sat_test/
+	mv problem.cnf output.sat sat_test/
 
 test_greek: greek sat_test
 	./greek p $(N)
@@ -54,9 +54,10 @@ test_wang: jr sat_test
 	@mv problem.cnf output.sat sat_test/
 
 PROBLEM=problems/0/simple1
-test_pingouins: pingouins
+test_pingouins: pingouins sat_test
 	./pingouins p $(PROBLEM)
-	minisat problem.cnf output.sat ; ./pingouins s $(PROBLEM)
+	minisat problem.cnf output.sat ; ./pingouins s $(PROBLEM) ; \
+
 PENALTY=0
 tests_pingouins: pingouins
 	for i in problems/$(PENALTY)/* ; do \

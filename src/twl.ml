@@ -222,42 +222,33 @@ let debug =
 
 (** Run DPLL for current Dimacs problem. *)
 let dpll out =
-	(* Creation of usefull data structures:
-	 * + [m] is the matrix representing the partial assigning ;
-	 * + [clauses_array] is the array of doubled chaines lists of clauses. Each
-	 *     | cell i contains the list of clauses indexed by the litteral i ;
-	 * + [stack] is the stack that stores changes applied during sucessive [dpll]
-	 *     | calls.
-	 *)
 	let m = Array.make_matrix 2 (Dimacs.nb_variables()+1) false
-	and clauses_array = Array.make (Dimacs.nb_variables () + 1) MList.create
-	and stack = Stack.create ()
-	in
-
-	(* Get clauses as lists of int * int * int list
-	 * and add them to the global array.
-	 *)
-	let clauses: (int * int * int list) list =
-		let add_clause (i, i', c) =
-			let idx = if i > 0 then i else -i
-			and idx' = if i' > 0 then i' else -i'
-			in
-			clauses_array.(idx) <- MList.add clauses_array.(idx) (i, i', c);
-			clauses_array.(idx') <- MList.add clauses_array.(idx') (i, i', c);
-			(idx, idx', c)
-		in
-		List.map
-			(fun c ->
-				match c with
-				| [] -> failwith "Null clause."
-				| [h] -> add_clause (h, h, c)
-				| h :: h' :: t -> add_clause (h, h', c)
+	(** [watched_litt.(i)] contains a list of indexes of the clauses which whaches
+	 * the litteral [i] *)
+	and watched_litt = Array.make (Dimacs.nb_variables()+1) [] in
+	(* Get clauses as lists of integers. *)
+	let clauses: ((int * int) * int list) array =
+		Array.of_list
+		(
+			List.mapi
+				(fun i lily ->
+					match lily with
+					| [] -> failwith "Empty clause."
+					| [h] ->
+						let idx = if h > 0 then h else -h in
+						watched_litt.(idx) <- i :: watched_litt.(idx);
+						((idx, idx), lily)
+					| h :: h' :: t ->
+						let idx = if h > 0 then h else -h in
+						let idx' = if h' > 0 then h' else -h' in
+						watched_litt.(idx) <- i :: watched_litt.(idx);
+						watched_litt.(idx') <- i :: watched_litt.(idx');
+						((idx, idx'), lily)
 				)
-			( (* List of list of integers representing a list of clauses *)
-			List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ()))
-	in
+				(List.rev_map (List.map Dimacs.to_int) (Dimacs.get_clauses ())))
+	and stack = Stack.create () in
 
-	 (** [sat m l] indicates whether a literal is satisfied by a partial
+	(** [sat m l] indicates whether a literal is satisfied by a partial
 	 * assignment. Satisfaction is always false for unassigned literals. *)
 	let sat l =
 		if l > 0 then
@@ -307,8 +298,8 @@ let dpll out =
 
 	(** One-step propagation. *)
 	let propagate_step clauses =
-		List.fold_left
-		(fun b (idx, idx', c) ->
+		Array.fold_left
+		(fun b (_, c) ->
 			if List.exists (fun l -> sat l) c then b else
 				match List.filter (fun l -> not (sat (-l))) c with
 				| [] -> raise Conflict
@@ -319,29 +310,19 @@ let dpll out =
 	in
 
 	let rec propagate () =
-		let filtered_clauses =
-			List.filter
-				(fun (idx, idx', l) ->
-					(Stack.is_empty stack)
-					||
-					(
-						let top = Stack.top stack in
-						idx = top || idx' = top))
-				clauses
-		in
-		if propagate_step filtered_clauses then propagate (); 
+		if propagate_step clauses then propagate (); 
 	in
 
 	let rec find_unassigned () =
 		try
-			List.iter
-				(fun (_, _, c) ->
+			Array.iter
+				(fun (_, c) ->
 					let unassigned = ref 0 in
 					try
 						List.iter
 							(fun l ->
-									if sat l then raise Break ;
-									if not (assigned l) then unassigned := l)
+								if sat l then raise Break ;
+								if not (assigned l) then unassigned := l)
 						 c ;
 						assert (!unassigned <> 0) ;
 						raise (Found !unassigned)
@@ -351,7 +332,6 @@ let dpll out =
 			raise (SAT)
 		with Found i -> i
 	in
-
 
 	(* DPLL algorithm. *)
 	let rec dpll () =
