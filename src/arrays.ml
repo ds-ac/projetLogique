@@ -3,8 +3,28 @@
 	* as a positive integer [n], the positive literal X is represented by
 	* [n] and not(X) is represented by [-n].
 	*
-	* A partial assignment [m] is an association list from variables
-	* (i.e. positive literals) to booleans. *)
+	* A partial assignment [m] is a matrix of size [2 x (n+1)] of booleans where n
+	* is the number of variables to be assgned in the SAT problem. The first line
+	* represents whether a litteral has already been assigned or not, and the
+	* second line represents the value of assigned litterals.
+	*
+	* e.g. if [(0, 5)] and [(1, 5)] are both set to [true], it means that at this
+	* point of the execution, the litteral represented by the integer 5 is
+	* assigned to [true], but if [(0, 5)] is [false], then it is not assigned,
+	* whatever the value of [(1, 5)] is.
+	*
+	*
+	*
+	* The stack represents changes made by each successive calls of dpll in the
+	* current branch of the assignment tree.
+	* Before the execution of the main call, the stack is empty.
+	* Before each recursive call, 0 is added on the stack. As this value does not
+	* represent any litteral, it does not mean anything in the stack.
+	* If the dpll function does not raise SAT, and stops, every alternate value is
+	* set back to unassigned and the stack returns to its origilan form. In such a
+	* case, there is no need to add 0 to the stack again as there is no more
+	* possible values to try for the current litteral.
+	*)
 
 exception Conflict
 exception SAT
