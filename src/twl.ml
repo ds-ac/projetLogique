@@ -327,11 +327,16 @@ let dpll out =
 						add l;
 						dpll () ;
 						if debug then Format.printf "backtrack@." ;
-						let elem = ref (1) in
-						while !elem > 0 do
-							elem := Stack.pop stack;
-							m.(0).(!elem)<-false
-						done;
+						let rec backtrack_stack () =
+							match Stack.pop stack with
+								| 0 -> ()
+								| i ->
+									(
+										m.(0).(i) <- false;
+										backtrack_stack ()
+									)
+						in
+						backtrack_stack ();
 						(add (-l));
 						dpll ()
 	in
