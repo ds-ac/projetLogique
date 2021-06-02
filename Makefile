@@ -68,21 +68,34 @@ tests_pingouins: pingouins
 PROVER=./twl
 in_test: all sat_test
 	@for i in tests/SAT/* ; do \
-		echo -n "$$i ..." ; \
-		$(PROVER) $$i "sat_test$${i##tests/SAT}.sat" ; \
-		grep -v UNSAT "sat_test$${i##tests/SAT}.sat" > /dev/null || exit 1 ; done
+		tmp="$${i##tests/SAT}" ; \
+		new="sat_test$${tmp%cnf}sat" ; \
+		printf "%42s -> %s\r%32s ... " \
+			"" "$${new}" "$$i" ; \
+		$(PROVER) $$i "$$new" ; \
+		grep -v UNSAT "$$new" > /dev/null || \
+			(printf "\e[01;31mUNSAT\e[0m\n\n"; exit 1) ; done
 	@for i in tests/UNSAT/* ; do \
-		echo -n "$$i... " ; \
-		$(PROVER) $$i "sat_test$${i##tests/UNSAT}.sat" ; \
-		grep -v UNSAT "sat_test$${i##tests/UNSAT}.sat" > /dev/null && exit 1 ; done
-test: all
+		tmp="$${i##tests/UNSAT}" ; \
+		new="sat_test$${tmp%cnf}sat" ; \
+		printf "%42s -> %s\r%32s ... " \
+			"" "$${new}" "$$i" ; \
+		$(PROVER) $$i "$$new" ; \
+		grep -e UNSAT "$$new" > /dev/null || \
+			(printf "\e[01;31mSAT\e[0m\n\n"; exit 1) ; done
+
+test: all sat_test
 	@echo Timing tests with minisat...
 	@time --output=tests/minisat.time --format=%U \
 	  make PROVER=minisat in_test > /dev/null
+	@printf "\e[32m"
 	@cat tests/minisat.time
+	@printf "\e[0m"
 	@echo Timing tests with $(PROVER)...
 	@time --output=tests/prover.time --format=%U make in_test
+	@printf "\e[32m"
 	@cat tests/prover.time
+	@printf "\e[0m"
 	@m=`cat tests/minisat.time` ; p=`cat tests/prover.time` ; \
 	  echo -n "Ratio: " ; echo "$$p / $$m" | bc
 

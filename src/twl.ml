@@ -1,118 +1,148 @@
 module type SIG = sig
 	type 'a mlist
-	val create : 'a -> 'a mlist
-	val prec_opt : 'a mlist -> 'a mlist option
-	val prec : 'a mlist -> 'a mlist
-	val next_opt : 'a mlist -> 'a mlist option
-	val next : 'a mlist -> 'a mlist
-	val set : 'a mlist -> 'a -> unit
-	val get : 'a mlist -> 'a
-	val add : 'a mlist -> 'a -> unit
-	val remove : 'a mlist -> unit
-	val iter_l : 'a mlist -> ('a -> unit) -> unit
-	val iter_r : 'a mlist -> ('a -> unit) -> unit
-	val iter : 'a mlist -> ('a -> unit) -> unit
-	val last : 'a mlist -> 'a mlist
-	val first : 'a mlist -> 'a mlist
-	val fold_l : ('a -> 'b -> 'a) -> 'a -> 'b mlist -> 'a
-	val fold_r : ('a -> 'b -> 'a) -> 'a -> 'b mlist -> 'a
+	val create: 'a mlist
+	val prec_opt: 'a mlist -> 'a mlist option
+	val prec: 'a mlist -> 'a mlist
+	val next_opt: 'a mlist -> 'a mlist option
+	val next: 'a mlist -> 'a mlist
+	val set: 'a mlist -> 'a -> unit
+	val get: 'a mlist -> 'a
+	val add: 'a mlist ->'a -> 'a mlist
+	val remove: 'a mlist -> 'a mlist
+	val iter_l: 'a mlist -> ('a -> unit) -> unit
+	val iter_r: 'a mlist -> ('a -> unit) -> unit
+	val iter: 'a mlist -> ('a -> unit) -> unit
+	val last: 'a mlist -> 'a mlist option
+	val first: 'a mlist -> 'a mlist option
+	val fold_l: ('a -> 'b -> 'a) -> 'a -> 'b mlist -> 'a
+	val fold_r: ('a -> 'b -> 'a) -> 'a -> 'b mlist -> 'a
 end
 
 
-(** Listes doublement chaînées *)
+(* Doubled chained lists are used in this algorithm.
+ * Putting the double linked list code in module makes it easier to manipulate
+ * in the code to come, as the internal representation of the lists do not
+ * matter.
+ *)
 
 module MList: SIG = struct
-	type 'a mlist = {
-		mutable value: 'a;
-		mutable next: 'a mlist option;
-		mutable prec: 'a mlist option}
+	type 'a mlist =
+		Element of {
+			mutable value: 'a;
+			mutable next: 'a mlist;
+			mutable prec: 'a mlist}
+		| Empty
 
-	let create (v: 'a): 'a mlist =
-		{value = v; next = None; prec = None}
+	let create : 'a mlist =
+		Empty
 
 	let prec_opt (lst: 'a mlist): 'a mlist option =
-		lst.prec
+		match lst with
+		| Element c -> Some c.prec
+		| Empty -> None
 
 	let prec (lst: 'a mlist): 'a mlist =
-		match lst.prec with
-		| None -> raise Not_found
-		| Some n -> n
+		match lst with
+		| Element c -> c.prec
+		| Empty -> raise Not_found
 
 	let next_opt (lst: 'a mlist): 'a mlist option =
-		lst.next
+		match lst with
+		| Element c -> Some c.next
+		| Empty -> None
 
 	let next (lst: 'a mlist): 'a mlist =
-		match lst.next with
-		| None -> raise Not_found
-		| Some n -> n
+		match lst with
+		| Element c -> c.next
+		| Empty -> raise Not_found
 
 	let set (lst: 'a mlist) (v: 'a): unit =
-		lst.value <- v
+		match lst with
+		| Element c -> c.value <- v
+		| Empty -> failwith("set applied to Empty.")
 
 	let get (lst: 'a mlist) : 'a =
-		lst.value
+		match lst with
+		| Element c -> c.value
+		| Empty -> failwith("get applied to Empty.")
 
-	let rec add (lst: 'a mlist) (v: 'a) : unit =
-		match lst.next with
-		| Some n -> add n v
-		| None ->
+	let rec add (lst: 'a mlist) (v: 'a) : 'a mlist =
+		match lst with
+		| Element c ->
 			(
-				let new_cell = create v in
-				lst.next <- Some new_cell;
-				new_cell.prec <- Some lst
+				(match c.next with
+				| Element c' -> let _ = add c.next v in ()
+				| Empty -> c.next <- Element {value = v ; prec = c.next ; next = Empty});
+				lst
 			)
+		| Empty -> Element {value = v; next = Empty; prec = Empty}
 
-
-	let remove (lst: 'a mlist) : unit =
-		match lst.prec, lst.next with
-		| None,   None   -> ()
-		| Some p, None   -> p.next <- None
-		| Some p, Some n -> (p.next <- Some n; n.prec <- Some p)
-		| None,   Some n -> n.prec <- None
+	(* When remove is called, the element removed is removed and the nearest
+	 * element is send back
+	 *)
+	let remove (lst: 'a mlist) : 'a mlist =
+		match lst with
+		| Element c ->
+			(
+				match c.prec, c.next with
+				| Element pc, Empty      -> ( pc.next <- Empty; c.prec )
+				| Element pc, Element nc -> ( pc.next <- c.next; nc.prec <- c.prec;
+				c.prec )
+				| Empty,      Element nc -> ( nc.prec <- Empty; c.next )
+				| Empty,      Empty      -> Empty
+			)
+		| Empty -> Empty
 
 	let rec iter_l (lst: 'a mlist) (f: 'a -> unit) : unit =
-		f lst.value;
-		match lst.prec with
-		| None -> ()
-		| Some p -> iter_l p f
+		match lst with
+		| Element c -> ( f c.value;  iter_l c.prec f )
+		| Empty -> ()
 
 	let rec iter_r (lst: 'a mlist) (f: 'a -> unit) : unit =
-		f lst.value;
-		match lst.next with
-		| None -> ()
-		| Some n -> iter_r n f
+		match lst with
+		| Element c -> ( f c.value;  iter_r c.next f )
+		| Empty -> ()
 
 	let iter (lst: 'a mlist) (f: 'a -> unit) : unit =
-		f lst.value;
-		match lst.prec, lst.next with
-		| None,   None   -> ()
-		| Some p, None   -> iter_l p f
-		| Some p, Some n -> iter_r n f; iter_l p f
-		| None,   Some n -> iter_r n f
+		match lst with
+		| Element c ->
+			( f c.value; iter_l c.prec f; iter_r c.next f)
+		| Empty -> ()
 
-	let rec last (lst: 'a mlist) : 'a mlist =
-		match lst.next with
-		| None -> lst
-		| Some n -> last n
+	let rec last (lst: 'a mlist) : 'a mlist option =
+		match lst with
+		| Element c ->
+			(
+				match last c.next with
+				| Some l -> Some l
+				| None -> Some lst
+			)
+		| Empty -> None
 
-	let rec first (lst: 'a mlist) : 'a mlist =
-		match lst.prec with
-		| None -> lst
-		| Some p -> first p
+	let rec first (lst: 'a mlist) : 'a mlist option =
+		match lst with
+		| Element c ->
+			(
+				match first c.prec with
+				| Some l -> Some l
+				| None -> Some lst
+			)
+		| Empty -> None
 
 	let rec fold_l (f: 'a -> 'b -> 'a) (start: 'a) (lst: 'b mlist) : 'a =
-		match lst.prec with
-		| None -> f start lst.value
-		| Some p -> fold_l f (f start lst.value) p
-
+		match lst with
+		| Element c -> f (fold_l f start c.prec) c.value
+		| Empty -> start
 
 	let rec fold_r (f: 'a -> 'b -> 'a) (start: 'a) (lst: 'b mlist) : 'a =
-		match lst.next with
-		| None -> f start lst.value
-		| Some n -> fold_r f (f start lst.value) n
+		match lst with
+		| Element c -> f (fold_r f start c.next) c.value
+		| Empty -> start
 end
 
 
+
+(*       -------      TWL Algorithm related code below      -------          *)
 
 (** Variables (i.e. propositional constants) are represented by positive
 	* integers. Literals are arbitrary integers: for any variable X coded
